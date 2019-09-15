@@ -1,0 +1,12 @@
+
+157 patients in ocena.txt
+194 patients in kontrolni_pregledi.txt
+149 patient_id matches between kontrolni_pregledi and ocena_gf.txt
+8 records have no baseline date
+35 records have no determinable next-year date
+111 total patients had a reading with a matchable date AND a one-year-later reading value 
+where a next-year mesurment could not be determined, the field was left empty
+
+
+This is 46 patients short of your total patients with a baseline.  Let me know how you want to handle cases where we coudn't determine year-out measurements according to your original critera.
+
