@@ -59,14 +59,32 @@ elif sys.argv[1] == "help": print help_string  ; sys.exit(0)
 elif len(sys.argv) < 4 or len(sys.argv) > 5 : print 'ERROR: Incorrect number of arguments. \n\n' + usage_string + help_prompt; sys.exit(1)
 elif not re.match(r'\d{1,}', sys.argv[3]): print 'ERROR: <delta> must be an integer. \n\n' + usage_string + help_prompt; sys.exit(1)
 
-delta = int(sys.argv[3])
-output_filename = re.sub(r'\.[a-zA-Z]{3}', '_delta_' + str(delta) + '.csv', sys.argv[2]) if len(sys.argv) < 5 else sys.argv[4]
-
-
+user_input_delta = int(sys.argv[3])
+output_filename = re.sub(r'\.[a-zA-Z]{3}', '_delta_' + str(user_input_delta) + '.csv', sys.argv[2]) if len(sys.argv) < 5 else sys.argv[4]
 
 # open the files, make them processable arrays < 5 else 'output.csv'
-file = open(sys.argv[2]); ratings_lines = file.readlines(); file.close() # read the file into a list where each list item is a line
-file = open(sys.argv[1]); control_views = file.readlines(); file.close() # read the file into a list where each list item is a line
+try:
+	file = open(sys.argv[2]); 
+except FileNotFoundError:
+	print sys.argv[2] + " not found."
+	sys.exit(2) 
+except Exception as e:
+	print(e)
+	sys.exit(2) 
+else: # read the file into a list where each list item is a line
+	ratings_lines = file.readlines(); 
+	file.close() 
+try:
+	file = open(sys.argv[1]); 
+except FileNotFoundError:
+	print sys.argv[1] + " not found."
+	sys.exit(2) 
+except Exception:
+	print(e)
+	sys.exit(2) 
+else: # read the file into a list where each list item is a line
+	control_views = file.readlines(); 
+	file.close() 
 
 #regular expressions to process the lines in the arrays
 filename_header_line_regex = re.compile(r'^([A-Z]{1}:.*\\(([a-zA-Z]*\d*[a-zA-Z]{1,})\d*\.[a-zA-Z]{3})).*') # 1 = full path, 2 = filename with ext, 3 patient id
@@ -142,8 +160,8 @@ def addBaselineYear(baselines, control_views):
 		if 'baseline date' in baselines[patient]: 
 			temp[patient] = baselines[patient]
 	return temp
-
-def addDeltaDate(delta_days, baselines, control_views):
+# finds and inserts the date of the next reading into the dictionary
+def addDeltaDate(delta_days, baselines, control_views): 
 	for patient in baselines:
 		baseline_date = baselines[patient]['baseline date']
 		if patient in control_views:
@@ -160,7 +178,6 @@ def addDeltaDate(delta_days, baselines, control_views):
 		if 'delta date' in baselines[patient]: 
 			temp[patient] = baselines[patient]
 	return temp
-
 # structure cleaned ratings lines into an easily-iterable dictionary. 
 def structureRatingsRecords(ratings_lines): 
 	indices = []; ratings_data = {}
@@ -176,7 +193,6 @@ def structureRatingsRecords(ratings_lines):
 					'control views': ratings_data[pid]['control views'] + thisslice if pid in ratings_data else thisslice
 		}
 	return ratings_data
-exact_line_number_matches = 0 #debugging
 # add the newest rating gaurenteed to be one year out.  takes two dictionaries: the well-populated baselines(ratings) dict wih next year dates, and a structured ratings line dict (built just like the control_views dict)
 def findNextDeltaReading(baselines, ratings_lines_dict): 
 	for patient in baselines:
@@ -194,23 +210,50 @@ def findNextDeltaReading(baselines, ratings_lines_dict):
 			temp[patient] = baselines[patient]
 	return temp
 
-#def outputCSV(baselines, header_row, output_filename):
+# Run the actual program!
+try:
+	control_views = combineStructureSortControlviewRecords(cleanControlviewsLines(control_views))
+except Exception as e:
+	pp.pprint(control_views) 
+	print '\n Could not process kontrol file. Check the space delimiting of the file.'
+	sys.exit(2) 
+try:
+	baselines = gatherBaselines(cleanRatingsLines(ratings_lines),control_views)
+except:
+	pp.pprint(baselines) 
+	print "\n Could not parse baselines.\n  Check the space delimiting of ratings file.\n Check delimiters.\n Make sure the word between the line number and serum value reading doesn't have any spaces or special characters in it."
+	sys.exit(2) 
+try:
+	baselines = addBaselineYear(baselines, control_views)
+except:
+	pp.pprint(baselines) 
+	print '\n Could not associate baselines with dates.\n Baseline parsing probably failed.\n Check the space delimiting of ratings file.'
+	sys.exit(2) 
+try:
+	baselines = addDeltaDate(user_input_delta, baselines, control_views)
+except Exception as e:
+	pp.pprint(baselines) 
+	print "\n Could not find delta dates.\n Baseline date parsing probably failed.\n Are dates in 'DD.MM.YYYY' format?"
+	sys.exit(2) 
+try:
+	ratings_lines_dict =  structureRatingsRecords(cleanRatingsLines(ratings_lines))
+except Exception as e:
+	pp.pprint(ratings_lines) 
+	print "\n Could not structure ratings.\n Something subtle might be wrong with thier format.\n Check delimiters.\n Make sure the word between the line number and serum value reading doesn't have any spaces or special characters in it."
+	print e
+	sys.exit(2) 
+try:
+	baselines = findNextDeltaReading(baselines, ratings_lines_dict)
+except Exception as e:
+	pp.pprint(baselines) 
+	print "\n Could not associate baselines with dates.\n  Likley we couldn't find delta dates.\n "
+	print e
+	sys.exit(2) 
 
-
-
-
-control_views = combineStructureSortControlviewRecords(cleanControlviewsLines(control_views))
-baselines = gatherBaselines(cleanRatingsLines(ratings_lines),control_views)
-baselines = addBaselineYear(baselines, control_views)
-#pp.pprint(baselines) # for debugging
-baselines = addDeltaDate(delta, baselines, control_views)
-ratings_lines_dict =  structureRatingsRecords(cleanRatingsLines(ratings_lines))
-baselines = findNextDeltaReading(baselines, ratings_lines_dict)
-
+# Any key in the baselines dict can be added here, and it will get a header and column in the CSV
 header_row = ['rating filepath','baseline rating','baseline date','delta rating','delta date', 'delta from delta','rating type']
 
-#outputCSV(baselines, header_row, output_filename) # why can't I encapsulate the filewriter in a function?
-
+# Actually write the spreadhseet (why can't I encapsulate the filewriter in a function?)
 with open(output_filename, 'wb') as csvfile:
 	filewriter = csv.writer(csvfile, delimiter=',')
    	filewriter.writerow(['patient']+header_row)
@@ -220,18 +263,15 @@ with open(output_filename, 'wb') as csvfile:
 			row.append(baselines[patient][item])
 		filewriter.writerow(row)
 
-# Print report
+# Print processing report
 #print str(exact_line_number_matches) + 'exact line number matches'
 print
 print str(len(indexHeaders(ratings_lines)))+ ' total patients in ratings file.'
 print str(len(ratings_lines_dict.keys())) + ' total patients with any match in the control file.'
-print str(len(baselines.keys())) + ' patients with a second rating >= ' + str(delta) + ' days after the baseline measurement.'
+print str(len(baselines.keys())) + ' patients with a second rating >= ' + str(user_input_delta) + ' days after the baseline measurement.'
 print
 print 'Output file written as ' + output_filename
 print
 
-
-#print sys.argv # debugging
-#pp.pprint()
-
-sys.exit(0) # exit with no error
+# exit with no error
+sys.exit(0) 
