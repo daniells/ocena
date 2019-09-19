@@ -254,14 +254,18 @@ except Exception as e:
 header_row = ['rating filepath','baseline rating','baseline date','delta rating','delta date', 'delta from delta','rating type']
 
 # Actually write the spreadhseet (why can't I encapsulate the filewriter in a function?)
-with open(output_filename, 'wb') as csvfile:
-	filewriter = csv.writer(csvfile, delimiter=',')
-   	filewriter.writerow(['patient']+header_row)
-   	for patient in baselines:
-   		row = [patient] 
-		for item in header_row:
-			row.append(baselines[patient][item])
-		filewriter.writerow(row)
+try:
+	with open(output_filename, 'wb') as csvfile:
+		filewriter = csv.writer(csvfile, delimiter=',')
+	   	filewriter.writerow(['patient']+header_row)
+	   	for patient in baselines:
+	   		row = [patient] 
+			for item in header_row:
+				row.append(baselines[patient][item])
+			filewriter.writerow(row)
+	file_wrote = (True,True) 
+except Exception as e:
+	file_wrote = (False,e)
 
 # Print processing report
 #print str(exact_line_number_matches) + 'exact line number matches'
@@ -270,7 +274,7 @@ print str(len(indexHeaders(ratings_lines)))+ ' total patients in ratings file.'
 print str(len(ratings_lines_dict.keys())) + ' total patients with any match in the control file.'
 print str(len(baselines.keys())) + ' patients with a second rating >= ' + str(user_input_delta) + ' days after the baseline measurement.'
 print
-print 'Output file written as ' + output_filename
+print 'Output file written as ' + output_filename if file_wrote[0] else "Failed to write CSV.\n\n" + str(file_wrote[1])
 print
 
 # exit with no error
