@@ -5,17 +5,19 @@ A script to extract and associate serum component data from disparate files.
 
 About
 -----
-For Š. Š's thesis project
+For Dr Š.'s thesis project
 
 Setup
 -----
 
 1. make sure python2.7 is installed and runs from the command line
-2. cd into the directory where you saved it and type
-3. Preferably your data files are in th same directory
-4. python extractor.py help
+2. cd into the directory where you saved extract.py and type
+4. python extract.py help
 
 That should get you started.
+
+Preferably your data files are in the same directory, but it should 
+work with full DOS paths.
 
 Issues
 ------
